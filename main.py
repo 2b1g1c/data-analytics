@@ -23,7 +23,7 @@ def normalize_df(df):
         colors=['#66b3ff', '#ff9999'],
         autopct='%1.1f%%'
     )
-    plt.title('Доля вакансий с низкими зарплатами')
+    plt.title('Доля вакансий с некорректными зарплатами')
 
     custom_colors = [
         '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', 
