@@ -473,25 +473,128 @@ def montly_responses(df):
     # print(df['response_count'].sum())
 
 
+def vacancies_and_responses_by_spec(df):
+    vacancies_by_spec = df['specialization'].value_counts()
+
+    responses_by_spec = df.groupby('specialization')['response_count'].sum()
+
+    plt.figure(figsize=(12, 10))
+    plt.ticklabel_format(axis='y', style='plain', useOffset=False)
+
+    vacancies_by_spec.sort_values(ascending=False).plot(kind='bar', color='skyblue')
+    plt.title('Количество вакансий по специальностям', pad=20, fontsize=14)
+    plt.xlabel('Специальность')
+    plt.ylabel('Количество вакансий')
+    plt.xticks(rotation=45, ha='right')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+    plt.tight_layout()
+    plt.savefig('vacancies_by_spec.png')
+    plt.show()
+
+    plt.figure(figsize=(12, 10))
+    plt.ticklabel_format(axis='y', style='plain', useOffset=False)
+
+    responses_by_spec.sort_values(ascending=False).plot(kind='bar', color='salmon')
+    plt.title('Количество откликов по специальностям', pad=20, fontsize=14)
+    plt.xlabel('Специальность')
+    plt.ylabel('Количество откликов')
+    plt.xticks(rotation=45, ha='right')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+    plt.tight_layout()
+    plt.savefig('responses_by_spec.png')
+    plt.show()
+
+
+def monthly_largest_specs_dynamic(df):
+    df['creation_date'] = pd.to_datetime(df['creation_date'])
+    df['month'] = df['creation_date'].dt.month
+
+    month_names = {
+        1: 'Янв', 2: 'Фев', 3: 'Мар', 4: 'Апр', 5: 'Май', 6: 'Июн',
+        7: 'Июл', 8: 'Авг', 9: 'Сен', 10: 'Окт', 11: 'Ноя', 12: 'Дек'
+    }
+
+    top5_spec_vacancies = df['specialization'].value_counts().nlargest(5).index.tolist()
+
+    top5_spec_responses = df.groupby('specialization')['response_count'].sum().nlargest(5).index.tolist()
+
+    def prepare_monthly_data(df, top_specs, mode='vacancies'):
+        result = pd.DataFrame(index=top_specs, columns=sorted(df['month'].unique()))
+        for month in sorted(df['month'].unique()):
+            month_data = df[df['month'] == month]
+            for spec in top_specs:
+                if mode == 'vacancies':
+                    count = (month_data['specialization'] == spec).sum()
+                else:
+                    count = month_data[month_data['specialization'] == spec]['response_count'].sum()
+                result.at[spec, month] = count if not pd.isna(count) else 0
+        return result.fillna(0)
+
+    monthly_vacancies = prepare_monthly_data(df, top5_spec_vacancies, 'vacancies')
+    monthly_responses = prepare_monthly_data(df, top5_spec_responses, 'responses')
+
+    plt.figure(figsize=(10, 6))
+
+    for spec in monthly_vacancies.index:
+        plt.plot([month_names[m] for m in monthly_vacancies.columns], 
+                monthly_vacancies.loc[spec], label=spec, linewidth=2)
+
+    plt.title('Динамика топ-5 специальностей по вакансиям', 
+            fontsize=14, pad=20)
+    plt.xlabel('Месяц', fontsize=12)
+    plt.ylabel('Количество вакансий', fontsize=12)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.xticks(rotation=0)
+
+    plt.tight_layout()
+    plt.savefig('5_largest_specs_by_vacancies_monthly.png')
+    plt.show()
+
+
+    plt.figure(figsize=(10, 6))
+    for spec in monthly_responses.index:
+        plt.plot([month_names[m] for m in monthly_responses.columns], 
+                monthly_responses.loc[spec], label=spec, linewidth=2)
+
+    plt.title('Динамика топ-5 специальностей по откликам', 
+            fontsize=14, pad=20)
+    plt.xlabel('Месяц', fontsize=12)
+    plt.ylabel('Количество откликов', fontsize=12)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.xticks(rotation=0)
+
+    plt.tight_layout()
+    plt.savefig('5_largest_specs_by_responses_monthly.png')
+    plt.show()
+
+
+
 df = pd.read_csv('bd_hh.csv')
-normalize_df(df)
-mean_median_salary_spec(df)
-break_min_max_spec(df)
-mean_median_salary_reg(df)
-break_min_max_reg(df)
-mean_median_salary_type(df)
-break_min_max_type(df)
+# normalize_df(df)
+# mean_median_salary_spec(df)
+# break_min_max_spec(df)
+# mean_median_salary_reg(df)
+# break_min_max_reg(df)
+# mean_median_salary_type(df)
+# break_min_max_type(df)
 
 
-print("Количество уникальных компаний:", df[df['employees_number'] > 0]['employer_id'].nunique())
-print("Общее количество сотрудников во всех компаниях:", df[df['employees_number'] > 0].drop_duplicates('employer_id')['employees_number'].sum())
+# print("Количество уникальных компаний:", df[df['employees_number'] > 0]['employer_id'].nunique())
+# print("Общее количество сотрудников во всех компаниях:", df[df['employees_number'] > 0].drop_duplicates('employer_id')['employees_number'].sum())
 
-print("РЖД:")
-specializations = df[df['employees_number'] == df['employees_number'].max()]['specialization']
-print(specializations.value_counts())
+# print("РЖД:")
+# specializations = df[df['employees_number'] == df['employees_number'].max()]['specialization']
+# print(specializations.value_counts())
 
-employees_number(df)
-salary_responses_about_company_size(df)
+# employees_number(df)
+# salary_responses_about_company_size(df)
 
-monthly_vacanciess(df)
-montly_responses(df)
+# monthly_vacanciess(df)
+# montly_responses(df)
+
+# vacancies_and_responses_by_spec(df)
+monthly_largest_specs_dynamic(df)
