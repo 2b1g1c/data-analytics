@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-
+from datetime import timedelta
 
 
 def normalize_df(df):
@@ -377,9 +377,100 @@ def salary_responses_about_company_size(df):
     plt.show()
 
 
+def monthly_vacanciess(df):
+    df['creation_date'] = pd.to_datetime(df['creation_date'])
+
+    month_names = {
+        1: 'Январь', 2: 'Февраль', 3: 'Март',
+        4: 'Апрель', 5: 'Май', 6: 'Июнь',
+        7: 'Июль', 8: 'Август', 9: 'Сентябрь',
+        10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
+    }
+
+    df['month_name'] = df['creation_date'].dt.month.map(month_names)
+    monthly_trend = df.groupby('month_name').size()
+    monthly_trend = monthly_trend.reindex(list(month_names.values())) 
+    plt.figure(figsize=(14, 6))
+    ax = plt.subplot()
+
+    # Линейный график
+    monthly_trend.plot(
+        kind='line',
+        markersize=8,
+        linewidth=2,
+        color='#4e79a7',
+        ax=ax
+    )
+    ax.set_title('Динамика создания вакансий по месяцам', pad=20, fontsize=14)
+    ax.set_xlabel('Месяц')
+    ax.set_ylabel('Количество вакансий')
+    ax.grid(True, linestyle='--', alpha=0.7)
+
+    ax.set_xticks(range(len(month_names)))
+    ax.set_xticklabels(month_names.values())
+
+    plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+
+    plt.tight_layout()
+    plt.savefig('monthly_vacancies_trend.png')
+    plt.show()
 
 
+def split_responses(row):
+    creation_date = row['creation_date']
+    end_date = creation_date + timedelta(days=30)
+    response_count = row['response_count']    
+    if creation_date.month == end_date.month:
+        return {creation_date.strftime('%B'): response_count}    
+    days_in_first_month = (end_date.replace(day=1) - creation_date).days
+    first_month = creation_date.strftime('%B')
+    second_month = end_date.strftime('%B')    
+    return {
+        first_month: int(response_count * days_in_first_month / 30),
+        second_month: response_count - int(response_count * days_in_first_month / 30)
+    }
 
+
+def montly_responses(df):
+    df['creation_date'] = pd.to_datetime(df['creation_date'])
+    month_names = [
+        'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ]
+    month_en = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    responses_distributed = []
+    for _, row in df.iterrows():
+        month_counts = split_responses(row)
+        for month, count in month_counts.items():
+            responses_distributed.append({'month': month, 'count': count})
+    responses_df = pd.DataFrame(responses_distributed)
+
+    monthly_responses = responses_df.groupby('month')['count'].sum().reindex(month_en)
+
+    plt.figure(figsize=(14, 6))
+    ax = monthly_responses.plot(
+        kind='line',
+        color='#e15759',
+        linewidth=2
+    )
+
+    ax.set_title('Распределение откликов по месяцам', pad=20)
+    ax.set_ylabel('Количество откликов')
+    ax.set_xlabel('Месяца')
+    ax.grid(True, linestyle='--', alpha=0.5)
+
+    ax.set_xticks(range(len(month_names)))
+    ax.set_xticklabels(month_names, rotation=45, ha='right')
+
+    plt.tight_layout()
+    plt.savefig('monthly_responses_trend.png')
+    plt.show()
+
+    # print(responses_df['count'].sum())
+    # print(df['response_count'].sum())
 
 
 df = pd.read_csv('bd_hh.csv')
@@ -402,3 +493,5 @@ print(specializations.value_counts())
 employees_number(df)
 salary_responses_about_company_size(df)
 
+monthly_vacanciess(df)
+montly_responses(df)
