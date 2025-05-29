@@ -655,7 +655,346 @@ def normalize_name(name):
             .strip())
 
 
+# функция анализа опыта работы (5) и его влияния на различные сферы
+def analyze_experience(df):
+    # для замены значений на русские
+    experience_dict = {
+        'no_experience': 'Нет опыта',
+        'up_to_3_years': 'От 1 года до 3 лет',
+        'up_to_6_years': 'От 3 до 6 лет',
+        'above_6_years': 'Более 6 лет'
+    }
+    
+    # порядок категорий для правильного отображения
+    experience_order = [
+        'Нет опыта',
+        'От 1 года до 3 лет',
+        'От 3 до 6 лет',
+        'Более 6 лет'
+    ]
+    
+    # заменяем значения на русские
+    df['experience'] = df['length_of_employment'].map(experience_dict)
+    
+    # убираем строки с неизвестными категориями опыта
+    df_exp = df[df['experience'].notna()]
+    
+    # преобразуем в тип с правильным порядком
+    df_exp['experience'] = pd.Categorical(
+        df_exp['experience'], 
+        categories=experience_order,
+        ordered=True
+    )
+    
+    # анализ частоты требований к опыту
+    plt.figure(figsize=(12, 6))
+    experience_counts = df_exp['experience'].value_counts().loc[experience_order]
+    
+    ax = experience_counts.plot(
+        kind='bar', 
+        color='#4e79a7',
+        edgecolor='white'
+    )
+    
+    plt.title('Распределение требований к опыту работы', fontsize=16, pad=20)
+    plt.xlabel('Категория опыта', fontsize=12)
+    plt.ylabel('Количество вакансий', fontsize=12)
+    plt.xticks(rotation=45, ha='right')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    # добавление значений над столбцами
+    for i, v in enumerate(experience_counts):
+        ax.text(i, v + 20, f"{v:,}".replace(',', ' '), 
+                ha='center', fontsize=10)
+    
+    plt.tight_layout()
+    plt.savefig('experience_distribution.png', dpi=300)
+    plt.show()
+
+    # фильтрация вакансий с указанной зп
+    salary_df = df_exp[
+        (df_exp['compensation_from'] > 20000) & 
+        (df_exp['compensation_to'] > 20000)
+    ].copy()
+    
+    # влияние опыта на зп и приглашения
+    plt.figure(figsize=(14, 6))
+    
+    # график Медианной зп по опыту
+    plt.subplot(1, 2, 1)
+    salary_by_exp = salary_df.groupby('experience')['compensation_from'].median()
+    ax1 = salary_by_exp.loc[experience_order].plot(
+        kind='bar', 
+        color='#f28e2c',
+        edgecolor='white'
+    )
+    plt.title('Медианная зарплата по опыту работы', fontsize=15)
+    plt.xlabel('Категория опыта', fontsize=12)
+    plt.ylabel('Рубли', fontsize=12)
+    plt.xticks(rotation=45, ha='right')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    # жобавление значений на столбцы зп
+    for i, v in enumerate(salary_by_exp.loc[experience_order]):
+        ax1.text(i, v + 500, f"{v:,.0f} ₽".replace(',', ' '), 
+                ha='center', fontsize=10)
+    
+
+    # график средних приглашений по опыту
+    plt.subplot(1, 2, 2)
+    invitations_by_exp = df_exp.groupby('experience')['invitation_count'].median()
+    ax2 = invitations_by_exp.loc[experience_order].plot(
+        kind='bar', 
+        color='#59a14f',
+        edgecolor='white'
+    )
+    plt.title('Среднее количество приглашений  по опыту работы', fontsize=13)
+    plt.xlabel('Категория опыта', fontsize=12)
+    plt.ylabel('Количество приглашений', fontsize=12)
+    plt.xticks(rotation=45, ha='right')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    # добавление значений на столбцы приглашений
+    for i, v in enumerate(invitations_by_exp.loc[experience_order]):
+        ax2.text(i, v + 0.1, f"{v:.1f}", 
+                ha='center', fontsize=10)
+    
+    plt.tight_layout()
+    plt.savefig('experience_salary_invitations.png', dpi=300)
+    plt.show()
+    
+    # смотрим зп vs приглашения 
+    # нормализуем данные для совмещения на одном графике (смотрим относительно максимума)
+    norm_salary = salary_by_exp / salary_by_exp.max()
+    norm_invitations = invitations_by_exp / invitations_by_exp.max()
+    
+    # создаем DataFrame для удобства построения
+    combined = pd.DataFrame({
+        'Зарплата (нормализованная)': norm_salary.loc[experience_order],
+        'Приглашения (нормализованная)': norm_invitations.loc[experience_order]
+    })
+    
+    ax = combined.plot(kind='bar', figsize=(12, 6))
+    plt.title('Сравнение зарплат и приглашений по опыту (нормализованное)', fontsize=16, pad=20)
+    plt.xlabel('Категория опыта', fontsize=12)
+    plt.ylabel('Нормализованные значения', fontsize=12)
+    plt.xticks(rotation=45, ha='right')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.legend(loc='upper left')
+    
+    plt.tight_layout()
+    plt.savefig('experience_salary_vs_invitations.png', dpi=300)
+    plt.show()
+
+# функция для гендерного и возрастного анализа (6)
+def analyze_gender_age(df):
+    # сравнение откликов по полу
+    total_female_responses = df['female_response_count'].sum()
+    total_male_responses = df['male_response_count'].sum()
+    
+    # сравнение приглашений по полу
+    total_female_invitations = df['female_invitation_count'].sum()
+    total_male_invitations = df['male_invitation_count'].sum()
+    
+    # визуализация
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    
+    # отклики
+    ax1.pie([total_female_responses, total_male_responses],
+            labels=['Женщины', 'Мужчины'],
+            autopct='%1.1f%%',
+            colors=['#ff9da7', '#86b4e8'])
+    ax1.set_title('Распределение откликов по полу')
+    
+    # приглашения
+    ax2.pie([total_female_invitations, total_male_invitations],
+            labels=['Женщины', 'Мужчины'],
+            autopct='%1.1f%%',
+            colors=['#ff9da7', '#86b4e8'])
+    ax2.set_title('Распределение приглашений по полу')
+    
+    plt.savefig('gender_distribution.png', dpi=300)
+    plt.show()
+    
+    # анализ молодых соискателей
+    teen_df = df[df['accept_teenagers'] == True]
+    
+    # распределение вакансий для подростков
+    plt.figure(figsize=(12, 6))
+    teen_spec_counts = teen_df['specialization'].value_counts().nlargest(10)
+    ax = teen_spec_counts.plot(kind='bar', color='#76b7b2')
+    plt.title('Топ-10 специализаций для соискателей 14-18 лет')
+    plt.xlabel('Специализация')
+    plt.ylabel('Количество вакансий')
+    plt.xticks(rotation=45, ha='right')
+    
+    for p in ax.patches:
+        ax.annotate(f"{p.get_height():,}".replace(',', ' '), 
+                    (p.get_x() + p.get_width() / 2., p.get_height()),
+                    ha='center', va='center', xytext=(0, 5), textcoords='offset points')
+    
+    plt.tight_layout()
+    plt.savefig('teen_vacancies.png', dpi=300)
+    plt.show()
+    
+    # активность
+    total_teen_responses = df['young_response_count'].sum()
+    total_teen_invitations = df['young_invitation_count'].sum()
+    
+    print(f"Общее количество откликов от молодежи: {total_teen_responses}")
+    print(f"Общее количество приглашений молодежи: {total_teen_invitations}")
+
+# функция для анализа отраслей и Зп (7)
+def analyze_industries(df):
+
+    # словарь отраслей
+    industry_dict = {
+        5: "Логистика",
+        7: "IT",
+        8: "Электроника",
+        9: "Телекоммуникации",
+        11: "Маркетинг",
+        13: "Строительство",
+        15: "Автобизнес",
+        19: "Лесная промышленность",
+        24: "Металлургия",
+        27: "Продукты питания",
+        29: "Сельское хозяйство",
+        33: "Машиностроение",
+        34: "Химическая пром.",
+        36: "Госорганизации",
+        37: "НКО",
+        39: "Образование",
+        41: "Розничная торговля",
+        42: "Товары народного потребления",
+        43: "Финансы",
+        44: "Услуги для бизнеса",
+        45: "Добывающая отрасль",
+        46: "Энергетика",
+        47: "Нефть и газ",
+        48: "Медицина",
+        49: "Услуги населению",
+        50: "HoReCa",
+        51: "ЖКХ",
+        52: "Культура",
+        388: "Промышленное оборудование",
+        389: "Управление активами"
+    }
+    
+    # функция для анализа строки 
+    def parse_industries(industry_str):
+        # отсутствующие значения
+        if not isinstance(industry_str, str):
+            return []
+        
+        # удаление квадратных скобок и пробелов
+        clean_str = industry_str.strip('[]').replace(' ', '')
+        if not clean_str:
+            return []
+        
+        # разделение строки по запятым
+        industry_ids = clean_str.split(',')
+        industries = []
+        
+        for i in industry_ids:
+            try:
+                # преобразование в целое число и поиск в словаре
+                industry_id = int(i)
+                industry_name = industry_dict.get(industry_id)
+                if industry_name:
+                    industries.append(industry_name)
+                else:
+                    # добавление неизвестных ID с пометкой
+                    industries.append(f"Unknown ID: {industry_id}")
+            except ValueError:
+                # сохранение некорректных значений
+                industries.append(f"Invalid value: '{i}'")
+        
+        return industries
+    
+    # функция преобразования
+    df['industries'] = df['industry_id_list'].apply(parse_industries)
+    
+    # подсчет вакансий по отраслям
+    industry_counts = {}
+    for industries in df['industries']:
+        for industry in industries:
+            industry_counts[industry] = industry_counts.get(industry, 0) + 1
+    
+    # сортировка и преобразование в Series
+    industry_counts = pd.Series(industry_counts).sort_values(ascending=False)
+    
+    # визуализация распределения отраслей (только известных)
+    known_industries = industry_counts[~industry_counts.index.str.contains('Unknown|Invalid')]
+    
+    plt.figure(figsize=(14, 8))
+    ax = known_industries.head(15).sort_values().plot(kind='barh', color='#59a14f')
+    plt.title('Топ-15 отраслей по количеству вакансий', fontsize=14)
+    plt.xlabel('Количество вакансий', fontsize=12)
+    plt.ylabel('Отрасль', fontsize=12)
+    
+    # добавление значений на столбцы
+    for i, v in enumerate(known_industries.head(15).sort_values()):
+        ax.text(v + 5, i, f"{v:,}".replace(',', ' '), va='center')
+    
+    plt.tight_layout()
+    plt.savefig('industry_distribution.png', dpi=300)
+    plt.show()
+    
+    # анализ зп по отраслям (только для вакансий с указанной зп)
+    salary_df = df[(df['compensation_from'] > 20000) & (df['compensation_to'] > 20000)].copy()
+    
+    # сбор зп по отраслям
+    industry_salaries = {}
+    for idx, row in salary_df.iterrows():
+        salary = row['compensation_from']
+        for industry in row['industries']:
+            # пропускаем неизвестные и некорректные отрасли
+            if 'Unknown' in industry or 'Invalid' in industry:
+                continue
+            if industry not in industry_salaries:
+                industry_salaries[industry] = []
+            industry_salaries[industry].append(salary)
+    
+    # расчет Медианных зп
+    median_salaries = {ind: np.median(sals) for ind, sals in industry_salaries.items()}
+    median_salaries = pd.Series(median_salaries).sort_values(ascending=False)
+    
+    # визуализация зарплат по отраслям
+    plt.figure(figsize=(14, 8))
+    ax = median_salaries.head(15).sort_values().plot(kind='barh', color='#edc949')
+    plt.title('Топ-15 отраслей по медианной зарплате', fontsize=14)
+    plt.xlabel('Медианная зарплата (руб)', fontsize=12)
+    plt.ylabel('Отрасль', fontsize=12)
+    
+    # добавление значений на столбцы
+    for i, v in enumerate(median_salaries.head(15).sort_values()):
+        ax.text(v + 500, i, f"{v:,.0f} ₽".replace(',', ' '), va='center')
+    
+    plt.tight_layout()
+    plt.savefig('industry_salaries.png', dpi=300)
+    plt.show()
+    
+    # вывод статистики по неизвестным отраслям
+    unknown_industries = industry_counts[industry_counts.index.str.contains('Unknown')]
+    if not unknown_industries.empty:
+        print("\nОбнаружены неизвестные ID отраслей:")
+        for industry, count in unknown_industries.items():
+            print(f"- {industry}: {count} вакансий")
+    
+    invalid_industries = industry_counts[industry_counts.index.str.contains('Invalid')]
+    if not invalid_industries.empty:
+        print("\nОбнаружены некорректные значения в industry_id_list:")
+        for industry, count in invalid_industries.items():
+            print(f"- {industry}: {count} вакансий")
+
+
 df = pd.read_csv('bd_hh.csv')
+
+
+# Преобразование данных
+df['creation_date'] = pd.to_datetime(df['creation_date'])
+    
 
 # блок зарплаты
 
@@ -666,31 +1005,39 @@ mean_median_salary_reg(df)
 break_min_max_reg(df)
 mean_median_salary_type(df)
 break_min_max_type(df)
+ 
+print("\nАнализ опыта работы:")
+analyze_experience(df)
+    
+print("\nГендерный и возрастной анализ:")
+analyze_gender_age(df)
+    
+print("\nАнализ отраслей:")
+analyze_industries(df)
 
-
-# интересные данные
-
+ # интересные данные
+ 
 print("Количество уникальных компаний:", df[df['employees_number'] > 0]['employer_id'].nunique())
 print("Общее количество сотрудников во всех компаниях:", df[df['employees_number'] > 0].drop_duplicates('employer_id')['employees_number'].sum())
-
+ 
 print("РЖД:")
 specializations = df[df['employees_number'] == df['employees_number'].max()]['specialization']
 print(specializations.value_counts())
-
-
-# блок численности штата
-
+ 
+ 
+ # блок численности штата
+ 
 employees_number(df)
 salary_responses_about_company_size(df)
-
-
-# блок временных рядов
-
+ 
+ 
+ # блок временных рядов
+ 
 monthly_vacanciess(df)
 montly_responses(df)
-
-vacancies_and_responses_by_spec(df)
+ 
 monthly_largest_specs_dynamic(df)
+vacancies_and_responses_by_spec(df)
 
 
 # блок карт
