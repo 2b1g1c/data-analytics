@@ -2,6 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import timedelta
+import folium
+import json
 
 
 def normalize_df(df):
@@ -46,8 +48,6 @@ def normalize_df(df):
         wedgeprops={'edgecolor': 'white', 'linewidth': 1}
     )
 
-
-    # Добавляем легенду с цветами
     plt.legend(
         wedges,
         low_salary_by_spec.index,
@@ -69,7 +69,6 @@ def mean_median_salary_spec(df):
     df = df[df['compensation_from'] > 20000]
     df = df[df['compensation_to'] > 20000]
 
-    # plt.style.use('seaborn-v0_8')
     plt.figure(figsize=(16, 8))
 
 
@@ -113,7 +112,6 @@ def mean_median_salary_reg(df):
     df = df[df['compensation_from'] > 20000]
     df = df[df['compensation_to'] > 20000]
 
-    # plt.style.use('seaborn-v0_8')
     plt.figure(figsize=(16, 8))
 
 
@@ -157,7 +155,6 @@ def mean_median_salary_type(df):
     df = df[df['compensation_from'] > 20000]
     df = df[df['compensation_to'] > 20000]
 
-    # plt.style.use('seaborn-v0_8')
     plt.figure(figsize=(16, 8))
 
 
@@ -393,7 +390,6 @@ def monthly_vacanciess(df):
     plt.figure(figsize=(14, 6))
     ax = plt.subplot()
 
-    # Линейный график
     monthly_trend.plot(
         kind='line',
         markersize=8,
@@ -572,29 +568,157 @@ def monthly_largest_specs_dynamic(df):
     plt.show()
 
 
+def style_function(feature):
+    return {
+        "fillColor": "YlOrRd",
+        "color": "black",
+        "weight": 1,
+        "fillOpacity": 0,
+    }
+
+
+def map_vacancies(m, geojson_data):
+    geojson = folium.GeoJson(
+        geojson_data,
+        name="Регионы",
+        style_function=style_function,
+        tooltip=folium.GeoJsonTooltip(
+            fields=["name", "vacancies"],
+            aliases=["Регион:", "Количество вакансий:"],
+            localize=True
+        )
+    )
+    folium.Choropleth(
+        geo_data=geojson_data,
+        data=regions_stats,
+        columns=["region_name", "vacancy_id"],
+        key_on="feature.properties.name",
+        fill_color="YlOrRd",
+        legend_name="Количество вакансий"
+    ).add_to(m)
+    geojson.add_to(m)
+    m.save("vacancies_map.html")
+
+
+def map_salary(m, geojson_data):
+    geojson = folium.GeoJson(
+        geojson_data,
+        name="Регионы",
+        style_function=style_function,
+        tooltip=folium.GeoJsonTooltip(
+            fields=["name", "med_salary"],
+            aliases=["Регион:", "Медианная зарплата:"],
+            localize=True
+        )
+    )
+    folium.Choropleth(
+        geo_data=geojson_data,
+        data=regions_stats,
+        columns=["region_name", "vacancy_id"],
+        key_on="feature.properties.name",
+        fill_color="PuOr",
+        legend_name="Медианная зарплата"
+    ).add_to(m)
+    geojson.add_to(m)
+    m.save("salary_map.html")
+
+
+def map_responses(m, geojson_data):
+    geojson = folium.GeoJson(
+        geojson_data,
+        name="Регионы",
+        style_function=style_function,
+        tooltip=folium.GeoJsonTooltip(
+            fields=["name", "responses"],
+            aliases=["Регион:", "Количество откликов:"],
+            localize=True
+        )
+    )
+    folium.Choropleth(
+        geo_data=geojson_data,
+        data=regions_stats,
+        columns=["region_name", "vacancy_id"],
+        key_on="feature.properties.name",
+        fill_color="RdBu",
+        legend_name="Количество откликов"
+    ).add_to(m)
+    geojson.add_to(m)
+    m.save("responses_map.html")
+
+
+def normalize_name(name):
+    return (name.replace("Еврейская АО", "Еврейская автономная область")
+            .replace("АО", "автономный округ")
+            .replace("Республика ", "")
+            .replace("Саха (Якутия)", "Республика Саха (Якутия)")
+            .replace("Хакасия", "Республика Хакасия")
+            .strip())
+
 
 df = pd.read_csv('bd_hh.csv')
-# normalize_df(df)
-# mean_median_salary_spec(df)
-# break_min_max_spec(df)
-# mean_median_salary_reg(df)
-# break_min_max_reg(df)
-# mean_median_salary_type(df)
-# break_min_max_type(df)
+
+# блок зарплаты
+
+normalize_df(df)
+mean_median_salary_spec(df)
+break_min_max_spec(df)
+mean_median_salary_reg(df)
+break_min_max_reg(df)
+mean_median_salary_type(df)
+break_min_max_type(df)
 
 
-# print("Количество уникальных компаний:", df[df['employees_number'] > 0]['employer_id'].nunique())
-# print("Общее количество сотрудников во всех компаниях:", df[df['employees_number'] > 0].drop_duplicates('employer_id')['employees_number'].sum())
+# интересные данные
 
-# print("РЖД:")
-# specializations = df[df['employees_number'] == df['employees_number'].max()]['specialization']
-# print(specializations.value_counts())
+print("Количество уникальных компаний:", df[df['employees_number'] > 0]['employer_id'].nunique())
+print("Общее количество сотрудников во всех компаниях:", df[df['employees_number'] > 0].drop_duplicates('employer_id')['employees_number'].sum())
 
-# employees_number(df)
-# salary_responses_about_company_size(df)
+print("РЖД:")
+specializations = df[df['employees_number'] == df['employees_number'].max()]['specialization']
+print(specializations.value_counts())
 
-# monthly_vacanciess(df)
-# montly_responses(df)
 
-# vacancies_and_responses_by_spec(df)
+# блок численности штата
+
+employees_number(df)
+salary_responses_about_company_size(df)
+
+
+# блок временных рядов
+
+monthly_vacanciess(df)
+montly_responses(df)
+
+vacancies_and_responses_by_spec(df)
 monthly_largest_specs_dynamic(df)
+
+
+# блок карт
+
+regions_stats = df.groupby('region_name').agg({
+    'vacancy_id': 'count',
+    'compensation_from': 'median',
+    'response_count': 'sum'
+}).reset_index()
+
+regions_stats['region_name'] = regions_stats['region_name'].apply(normalize_name)
+
+with open("russia.geojson", "r", encoding="utf-8") as f:
+    geojson_data = json.load(f)
+
+stats_dict = regions_stats.set_index('region_name').to_dict('index')
+
+for feature in geojson_data['features']:
+    region_name = feature['properties']['name']
+    stats = stats_dict.get(region_name, {})
+    feature['properties']['vacancies'] = f"{stats.get('vacancy_id', 0):,}".replace(",", " ")
+    feature['properties']['med_salary'] = f"{round(stats.get('compensation_from', 0), 1):,}".replace(",", " ") + " ₽"
+    feature['properties']['responses'] = f"{stats.get('response_count', 0):,}".replace(",", " ")
+
+
+m = folium.Map(location=[60, 80], zoom_start=3)
+map_vacancies(m, geojson_data)
+m = folium.Map(location=[60, 80], zoom_start=3)
+map_salary(m, geojson_data)
+m = folium.Map(location=[60, 80], zoom_start=3)
+map_responses(m, geojson_data)
