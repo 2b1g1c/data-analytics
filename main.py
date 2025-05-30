@@ -614,7 +614,7 @@ def map_salary(m, geojson_data):
     folium.Choropleth(
         geo_data=geojson_data,
         data=regions_stats,
-        columns=["region_name", "vacancy_id"],
+        columns=["region_name", "compensation_from"],
         key_on="feature.properties.name",
         fill_color="PuOr",
         legend_name="Медианная зарплата"
@@ -637,7 +637,7 @@ def map_responses(m, geojson_data):
     folium.Choropleth(
         geo_data=geojson_data,
         data=regions_stats,
-        columns=["region_name", "vacancy_id"],
+        columns=["region_name", "response_count"],
         key_on="feature.properties.name",
         fill_color="RdBu",
         legend_name="Количество откликов"
